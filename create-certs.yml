@@ -1,0 +1,29 @@
+version: '2.2'
+
+services:
+  create_certs:
+    container_name: create_certs
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    command: >
+      bash -c '
+        if [[ ! -f /certs/bundle.zip ]]; then
+          openssl genrsa -out /certs/ca.key 2048;
+
+          openssl req -new -x509 -sha256 -key /certs/ca.key -out /certs/ca.crt -days 365 -subj "/C=ID/O=SDI/CN=SDI Development";
+
+          openssl req -newkey rsa:2048 -nodes -sha256 -keyout /certs/es01.key -out /certs/es01.csr -days 365 -subj "/CN=es01.dev.sdi";
+          openssl req -newkey rsa:2048 -nodes -sha256 -keyout /certs/es02.key -out /certs/es02.csr -days 365 -subj "/CN=es02.dev.sdi";
+          openssl req -newkey rsa:2048 -nodes -sha256 -keyout /certs/es03.key -out /certs/es03.csr -days 365 -subj "/CN=es03.dev.sdi";
+
+          echo "subjectAltName = DNS:es01.dev.sdi" > /certs/extfile.cnf;
+          openssl x509 -req -sha256 -in /certs/es01.csr -CA /certs/ca.crt -CAkey /certs/ca.key -CAcreateserial -out /certs/es01.crt -days 365 -extfile /certs/extfile.cnf;
+          openssl x509 -req -sha256 -in /certs/es02.csr -CA /certs/ca.crt -CAkey /certs/ca.key -CAcreateserial -out /certs/es02.crt -days 365;
+          openssl x509 -req -sha256 -in /certs/es03.csr -CA /certs/ca.crt -CAkey /certs/ca.key -CAcreateserial -out /certs/es03.crt -days 365;
+        fi;
+        chown -R 1000:0 /certs
+      '
+    user: "0"
+    working_dir: /usr/share/elasticsearch
+    volumes: ['certs:/certs', '.:/usr/share/elasticsearch/config/certificates']
+
+volumes: {"certs"}
